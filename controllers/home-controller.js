@@ -1,8 +1,11 @@
 module.exports = HomeController;
 const Cache = require("cache");
-let quizCache = new Cache(1 * 24 * 60 * 60 * 1000);
 
 function HomeController($config, $event, $logger, $dbConnection) {
+
+    const quizCache = new Cache($config.get('quiz.cache'));
+    const vocabularyCache = new Cache($config.get('vocabulary.cache'));
+
     this.welcome = function (io) {
         io.json({
             name: $config.get("package.name"),
@@ -45,6 +48,7 @@ function HomeController($config, $event, $logger, $dbConnection) {
             "quizes": quizes
         });
     }
+
     this.submitQuiz = async function (io) {
         let result = {
             answer_count: 0,
@@ -96,6 +100,7 @@ function HomeController($config, $event, $logger, $dbConnection) {
             io.delegate("HomeController@quiz");
         }
     }
+
     function suffleQuizAnswer(quiz) {
         var answers = [];
         answers.push(quiz.answer1);
@@ -114,4 +119,78 @@ function HomeController($config, $event, $logger, $dbConnection) {
         quiz.correct_answer = answers.indexOf(quiz.correct_answer) + 1;
         return quiz;
     }
+
+    this.vocabulary = async function(io) {
+        let limitQuestion = (io.inputs.limit) ? io.inputs.limit : $config.get("vocabulary.size", 70);
+        let cacheName = `vocabularys-${limitQuestion}`;
+        let vocabularys = vocabularyCache.get(cacheName);
+        
+        if (vocabularys == null) {
+            vocabularys = await $dbConnection.query(`SELECT * FROM vocabulary ORDER BY RAND() LIMIT ${limitQuestion};`);
+            vocabularyCache.put(cacheName, vocabularys);
+        }
+        
+        let sessionCacheKey = "vocabulary_session_" + io.session.id;
+        if (vocabularyCache.get(sessionCacheKey) == null) {
+            let vocabularySession = {
+                "id": io.session.id,
+                "startTime": io.session.lastActive
+            };
+            vocabularyCache.put(sessionCacheKey, vocabularySession);
+            $logger.info("START", vocabularySession);
+        }
+        return io.render("vocabulary", {
+            vocabularys
+        });
+    }
+
+    this.submitVocabulary = async function (io) {
+        let request = Object.assign({}, io.inputs);
+        let answerCount = Object.keys(request).length;
+
+        let result = {
+            answer_count: 0,
+            submit_answer_count: 0,
+            correct_answer_count: 0,
+            timer: 0
+        }
+        
+        let sessionCacheKey = "vocabulary_session_" + io.session.id;
+        let vocabularySession = vocabularyCache.get(sessionCacheKey);
+        let enableEditAfterSubmitting = $config.get("vocabulary.editAfterSubmitting", true);
+        if (vocabularySession != null
+            && (enableEditAfterSubmitting || vocabularySession.finishTime == null)
+        ) {
+            result.timer = io.session.lastActive - vocabularySession.startTime;
+            vocabularySession.finishTime = io.session.lastActive;
+            vocabularyCache.put(sessionCacheKey, vocabularySession);
+            $logger.info("FINISH VOCABULARY: ", vocabularySession);
+
+            result.answer_count = answerCount;
+            
+            let vocabularys = vocabularyCache.get(`vocabularys-${answerCount}`);
+            for (let k in vocabularys) {
+                let item = vocabularys[k];
+                if (request[item.id] && request[item.id].toLowerCase() === item.word) {
+                    result.submit_answer_count++;
+                    item.correct = true;
+                } else {
+                    result.correct_answer_count++;
+                    item.correct = false;
+                }
+                item.answer = request[item.id];
+            }
+
+            return io.render("vocabulary", {
+                vocabularys,
+                result
+            });
+
+        } else {
+            quizCache.put(sessionCacheKey, null);
+            return io.delegate("HomeController@vocabulary");
+        }
+    }
+
+    
 }

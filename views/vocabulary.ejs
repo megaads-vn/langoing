@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Langoing Vocabulary</title>
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <style type="text/css">
+        h1 {
+            text-align: center;
+        }
+        .vocabulary-container {
+            display: grid;
+            grid-template-columns: 50% 50%;
+        }
+        .vocabulary-item {
+            padding: 0px 15px;
+        }
+        .vocabulary-item > h3 {
+            min-height: 40px;
+            font-size: 17px;
+        
+        }
+        .vocabulary-item > input {
+            width: 100%;
+            height: 25px;
+        }
+        #vocabulary-form button {
+            width: 100px;
+            font-size: 20px;
+            padding: 10px;
+        }
+        @media (max-width: 760px) {
+            .vocabulary-container {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Vocabulary Challenge</h1>
+
+    <% if (typeof result != 'undefined') { %>
+        <h2>================================================</h2>
+        <h2>YOUR RESULT</h2>
+        <h3> > Questions: <%= result.answer_count %></h3>
+        <h3 style="color: green"> > Submitted answers: <%= result.submit_answer_count %></h3>
+        <h3 style="color: red;"> > Correct answers: <%= result.correct_answer_count %></h3>
+        <h3> > Timer: <%= result.timer %></h3>
+        <h2>================================================</h2>
+    <% } %>
+
+    <form method="POST" action="/vocabulary" id="vocabulary-form">
+        <div class="vocabulary-container">
+            <% vocabularys.forEach(function(item, index) {
+                var style = '';
+                if (typeof item.correct != "undefined" && item.correct == true) {
+                    style = 'style="color: green"';
+                } else if (typeof item.correct != "undefined" && item.correct == false) {
+                    style = 'style="color: red"';
+                } %>
+                <div class="vocabulary-item" <%- style %>>
+                    <h3><%= index + 1 %>. <%= item.meaning %></h3>
+                    <input type="text" name="<%= item.id %>" value="<%= item.answer %>" />
+                </div>
+            <% }); %>
+        </div>
+
+        <p style="text-align: center;">
+            <button type="submit">Submit</button>
+            <button type="button" onclick="resetForm()">Reset</button>
+        </p>
+        
+    </form>
+
+    <script type="text/javascript">
+        function resetForm() {
+            var check = confirm('Do you want reset all Vocabulary result ?');
+            if (check) {
+                document.getElementById("vocabulary-form").reset();
+            }
+        }
+    </script>
+</body>
+</html>
