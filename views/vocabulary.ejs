@@ -19,7 +19,7 @@
         .vocabulary-item > h3 {
             min-height: 40px;
             font-size: 17px;
-        
+            user-select: none;
         }
         .vocabulary-item > input {
             width: 100%;
@@ -44,8 +44,8 @@
         <h2>================================================</h2>
         <h2>YOUR RESULT</h2>
         <h3> > Questions: <%= result.answer_count %></h3>
-        <h3 style="color: green"> > Submitted answers: <%= result.submit_answer_count %></h3>
-        <h3 style="color: red;"> > Correct answers: <%= result.correct_answer_count %></h3>
+        <h3 style="color: green"> > Correct answers: <%= result.correct_answer_count %></h3>
+        <h3 style="color: red"> > Incorrect answers: <%= result.incorrect_answer_count %></h3>
         <h3> > Timer: <%= result.timer %></h3>
         <h2>================================================</h2>
     <% } %>

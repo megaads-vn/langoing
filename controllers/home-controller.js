@@ -121,15 +121,15 @@ function HomeController($config, $event, $logger, $dbConnection) {
     }
 
     this.vocabulary = async function(io) {
-        let limitQuestion = (io.inputs.limit) ? io.inputs.limit : $config.get("vocabulary.size", 70);
+        let limitQuestion = (!isNaN(io.inputs.limit)) ? io.inputs.limit : $config.get("vocabulary.size", 70);
         let cacheName = `vocabularys-${limitQuestion}`;
         let vocabularys = vocabularyCache.get(cacheName);
         
         if (vocabularys == null) {
             vocabularys = await $dbConnection.query(`SELECT * FROM vocabulary ORDER BY RAND() LIMIT ${limitQuestion};`);
-            vocabularyCache.put(cacheName, vocabularys);
+            vocabularyCache.put(cacheName, JSON.parse(JSON.stringify(vocabularys)));
         }
-        
+    
         let sessionCacheKey = "vocabulary_session_" + io.session.id;
         if (vocabularyCache.get(sessionCacheKey) == null) {
             let vocabularySession = {
@@ -137,7 +137,7 @@ function HomeController($config, $event, $logger, $dbConnection) {
                 "startTime": io.session.lastActive
             };
             vocabularyCache.put(sessionCacheKey, vocabularySession);
-            $logger.info("START", vocabularySession);
+            // $logger.info("START", vocabularySession);
         }
         return io.render("vocabulary", {
             vocabularys
@@ -150,8 +150,8 @@ function HomeController($config, $event, $logger, $dbConnection) {
 
         let result = {
             answer_count: 0,
-            submit_answer_count: 0,
             correct_answer_count: 0,
+            incorrect_answer_count: 0,
             timer: 0
         }
         
@@ -164,26 +164,33 @@ function HomeController($config, $event, $logger, $dbConnection) {
             result.timer = io.session.lastActive - vocabularySession.startTime;
             vocabularySession.finishTime = io.session.lastActive;
             vocabularyCache.put(sessionCacheKey, vocabularySession);
-            $logger.info("FINISH VOCABULARY: ", vocabularySession);
+            // $logger.info("FINISH VOCABULARY: ", vocabularySession);
 
             result.answer_count = answerCount;
             
             let vocabularys = vocabularyCache.get(`vocabularys-${answerCount}`);
-            for (let k in vocabularys) {
-                let item = vocabularys[k];
-                if (request[item.id] && request[item.id].toLowerCase() === item.word) {
-                    result.submit_answer_count++;
-                    item.correct = true;
+            let vocabularySubmit = [];
+            vocabularys.forEach(function (vocabulary) {
+                let item = Object.assign({}, vocabulary);
+                if (request[item.id]) {
+                    if (request[item.id].toLowerCase().trim() === item.word.toLowerCase().trim()) {
+                        result.correct_answer_count++;
+                        item.correct = true;
+                    } else {
+                        result.incorrect_answer_count++;
+                        item.correct = false;
+                    }
+                    item.answer = request[item.id];
                 } else {
-                    result.correct_answer_count++;
+                    result.incorrect_answer_count++;
                     item.correct = false;
                 }
-                item.answer = request[item.id];
-            }
-
+                vocabularySubmit.push(item);
+            });
+            
             return io.render("vocabulary", {
-                vocabularys,
-                result
+                vocabularys: vocabularySubmit,
+                result: result
             });
 
         } else {
