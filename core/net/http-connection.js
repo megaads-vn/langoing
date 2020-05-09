@@ -149,7 +149,7 @@ function HttpConnection() {
                 inputString = decodeURIComponent(inputString);
                 inputString.replace(/[?&]+([^=&]+)=([^&]*)/gi,
                      function (m, key, value) {
-                         retval[key] = value;
+                         retval[key] = value.replace(/\+/g, " ");
                      }
                  );
             } catch(exc) {}

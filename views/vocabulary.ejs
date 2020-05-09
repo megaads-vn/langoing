@@ -50,7 +50,7 @@
         <h2>================================================</h2>
     <% } %>
 
-    <form method="POST" action="/vocabulary" id="vocabulary-form">
+    <form method="POST" id="vocabulary-form" enctype="application/x-www-form-urlencoded">
         <div class="vocabulary-container">
             <% vocabularys.forEach(function(item, index) {
                 var style = '';
@@ -61,7 +61,7 @@
                 } %>
                 <div class="vocabulary-item" <%- style %>>
                     <h3><%= index + 1 %>. <%= item.meaning %></h3>
-                    <input type="text" name="<%= item.id %>" value="<%= item.answer %>" />
+                    <input type="text" name="<%= item.id %>" value="<%= item.answer %>" autocomplete="off" />
                 </div>
             <% }); %>
         </div>

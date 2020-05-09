@@ -123,9 +123,13 @@ function HomeController($config, $event, $logger, $dbConnection) {
     this.vocabulary = async function(io) {
         let limitQuestion = (!isNaN(io.inputs.limit)) ? io.inputs.limit : $config.get("vocabulary.size", 70);
         let cacheName = `vocabularys-${limitQuestion}`;
+        if ($config.get("vocabulary.cacheBySession")) {
+            cacheName = `vocabularys-${limitQuestion}-${io.session.id}`;
+        }
+
         let vocabularys = vocabularyCache.get(cacheName);
         
-        if (vocabularys == null) {
+        if (vocabularys == null || io.inputs.flush) {
             vocabularys = await $dbConnection.query(`SELECT * FROM vocabulary ORDER BY RAND() LIMIT ${limitQuestion};`);
             vocabularyCache.put(cacheName, JSON.parse(JSON.stringify(vocabularys)));
         }
@@ -168,26 +172,33 @@ function HomeController($config, $event, $logger, $dbConnection) {
 
             result.answer_count = answerCount;
             
-            let vocabularys = vocabularyCache.get(`vocabularys-${answerCount}`);
+            let vocabularys = [];
+            if ($config.get("vocabulary.cacheBySession")) {
+                vocabularys = vocabularyCache.get(`vocabularys-${answerCount}-${io.session.id}`);
+            } else {
+                vocabularys = vocabularyCache.get(`vocabularys-${answerCount}`);
+            }
+            
             let vocabularySubmit = [];
             vocabularys.forEach(function (vocabulary) {
                 let item = Object.assign({}, vocabulary);
                 if (request[item.id]) {
-                    if (request[item.id].toLowerCase().trim() === item.word.toLowerCase().trim()) {
+                    var answer = decodeURIComponent(request[item.id].toLowerCase().trim());
+                    if (answer === item.word.toLowerCase().trim()) {
                         result.correct_answer_count++;
                         item.correct = true;
                     } else {
                         result.incorrect_answer_count++;
                         item.correct = false;
                     }
-                    item.answer = request[item.id];
+                    item.answer = answer;
                 } else {
                     result.incorrect_answer_count++;
                     item.correct = false;
                 }
                 vocabularySubmit.push(item);
             });
-            
+
             return io.render("vocabulary", {
                 vocabularys: vocabularySubmit,
                 result: result
