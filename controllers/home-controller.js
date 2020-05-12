@@ -130,7 +130,9 @@ function HomeController($config, $event, $logger, $dbConnection) {
         let vocabularys = vocabularyCache.get(cacheName);
         
         if (vocabularys == null || io.inputs.flush) {
-            vocabularys = await $dbConnection.query(`SELECT * FROM vocabulary ORDER BY RAND() LIMIT ${limitQuestion};`);
+            vocabularys = await $dbConnection.query(`SELECT * FROM vocabulary ORDER BY RAND() LIMIT ${limitQuestion};`).catch(error => {
+                return null;
+            });
             vocabularyCache.put(cacheName, JSON.parse(JSON.stringify(vocabularys)));
         }
     
